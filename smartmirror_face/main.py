@@ -1,7 +1,9 @@
 import argparse
 
-from .capture import capture_faces
+from .capture import capture_faces, prune_db
 from .detect import detect, train
+from .model import Model
+from .config import model_abort, model_detect
 
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('mode', type=str, help='face detection mode')
@@ -17,4 +19,17 @@ if args.mode == 'train':
     train(args.workdir + "/faces", args.workdir + "/features")
 
 if args.mode == 'detect':
-    detect(args.workdir + "/features/classifier.pkl")
+    # modes: 'paused', 'detect', 'exit', '<person_name>[:clean]'
+    model = Model()
+    while model.mode != model_abort:
+        if model.mode == model_detect:
+            detect(args.workdir + "/features/classifier.pkl")
+        else:
+            person = model.mode.split(':')
+            if 'clean' == person[1]:
+                prune_db(args.workdir + "/faces/" + person[0])
+            capture_faces(person[0], args.workdir)
+            train(args.workdir + "/faces", args.workdir + "/features")
+            model.mode = model_detect
+
+

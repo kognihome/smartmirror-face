@@ -164,7 +164,7 @@ def align_images(input_path, output_path, processes=3, size=96):
         time.sleep(0.5)
 
 
-def prune_db(path, threshold=0):
+def prune_db(path, threshold=None):
     exts = ["jpg", "png"]
     for subdir, dirs, files in os.walk(path):
         if subdir == path:
@@ -174,6 +174,6 @@ def prune_db(path, threshold=0):
             (imageClass, imageName) = (os.path.basename(subdir), fName)
             if any(imageName.lower().endswith("." + ext) for ext in exts):
                 nImgs += 1
-        if nImgs < threshold:
+        if threshold is None or nImgs < threshold:
             print("Removing {}".format(subdir))
             shutil.rmtree(subdir)
