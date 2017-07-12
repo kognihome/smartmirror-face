@@ -3,6 +3,7 @@ import sys
 from os.path import join, split, dirname
 import subprocess
 from operator import itemgetter
+from time import sleep
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,8 @@ from sklearn.svm import SVC
 import openface
 
 from .config import dlib_shape_predictor, openface_network_model, lua_dir
+from .smoothing import Smoother
+from .model import Model
 
 np.set_printoptions(precision=2)
 
@@ -81,6 +84,8 @@ def detect(model_path, video_device=0, video_width=320, video_height=640, roi_co
     net = openface.TorchNeuralNet(openface_network_model, imgDim=img_dim, cuda=cuda)
 
     detector = Detector(model_path, align, net, img_dim)
+    model = Model()
+    smoother = Smoother(model)
 
     # Capture device. Usually 0 will be webcam and 1 will be usb cam.
     video_capture = cv2.VideoCapture(video_device)
@@ -99,36 +104,36 @@ def detect(model_path, video_device=0, video_width=320, video_height=640, roi_co
     else:
         roi_params = None
 
-    confidenceList = []
-    while True:
-        ret, frame = video_capture.read()
-        if roi_params is not None:
-            roi = frame[roi_params[1]:roi_params[3],
-                          roi_params[0]:roi_params[2]]
-        else:
-            roi = frame
+    try:
+        while True:
+            if model.update:
+                ret, frame = video_capture.read()
+                if roi_params is not None:
+                    roi = frame[roi_params[1]:roi_params[3],
+                                roi_params[0]:roi_params[2]]
+                else:
+                    roi = frame
 
-        persons, confidences = detector.infer(roi)
-        print ("P: " + str(persons) + " C: " + str(confidences))
-        try:
-            confidenceList.append('%.2f' % confidences[0])
-        except:
-            pass
+                persons, confidences = detector.infer(roi)
+                for i, c in enumerate(confidences):
+                    if c <= threshold:  # 0.5 is kept as threshold for known face.
+                        persons[i] = "_unknown"
 
-        for i, c in enumerate(confidences):
-            if c <= threshold:  # 0.5 is kept as threshold for known face.
-                persons[i] = "_unknown"
+                        # Print the person name and conf value on the frame
+                smoother.detect(persons)
+                cv2.putText(frame, "P: {} C: {}".format(persons, confidences),
+                            (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-                # Print the person name and conf value on the frame
-        cv2.putText(frame, "P: {} C: {}".format(persons, confidences),
-                    (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
-        if roi_params is not None:
-            cv2.rectangle(frame, (roi_params[0], roi_params[1]), (roi_params[2], roi_params[3]), (0, 165, 255))
-        cv2.imshow('', frame)
-        # quit the program on the press of key 'q'
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+                if roi_params is not None:
+                    cv2.rectangle(frame, (roi_params[0], roi_params[1]), (roi_params[2], roi_params[3]), (0, 165, 255))
+                cv2.imshow('', frame)
+                # quit the program on the press of key 'q'
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+            else:
+                sleep(0.2)
+    except KeyboardInterrupt:
+        pass
     # When everything is done, release the capture
     video_capture.release()
     cv2.destroyAllWindows()
