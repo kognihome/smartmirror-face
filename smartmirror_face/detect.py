@@ -77,7 +77,7 @@ class Detector(object):
         return reps
 
 
-def detect(model, model_path, video_device=0, video_width=320, video_height=640, roi_coords=None,
+def detect(model, model_path, video_device=0, video_width=640, video_height=480, roi_coords=None,
            roi_size=None, cuda=False, img_dim=96, threshold=0.5):
     align = openface.AlignDlib(dlib_shape_predictor)
     net = openface.TorchNeuralNet(openface_network_model, imgDim=img_dim, cuda=cuda)
@@ -103,31 +103,32 @@ def detect(model, model_path, video_device=0, video_width=320, video_height=640,
         roi_params = None
 
     try:
-        if model.mode == model_detect:
-            ret, frame = video_capture.read()
-            if roi_params is not None:
-                roi = frame[roi_params[1]:roi_params[3],
-                            roi_params[0]:roi_params[2]]
-            else:
-                roi = frame
+        while model.mode in [model_detect, model_paused]:
+            if model.mode == model_detect:
+                ret, frame = video_capture.read()
+                if roi_params is not None:
+                    roi = frame[roi_params[1]:roi_params[3],
+                                roi_params[0]:roi_params[2]]
+                else:
+                    roi = frame
 
-            persons, confidences = detector.infer(roi)
-            for i, c in enumerate(confidences):
-                if c <= threshold:  # 0.5 is kept as threshold for known face.
-                    persons[i] = "_unknown"
+                persons, confidences = detector.infer(roi)
+                for i, c in enumerate(confidences):
+                    if c <= threshold:  # 0.5 is kept as threshold for known face.
+                        persons[i] = "_unknown"
 
-            smoother.detect(persons)
-            cv2.putText(frame, "P: {} C: {}".format(persons, confidences),
-                        (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                smoother.detect(persons)
+                cv2.putText(frame, "P: {} C: {}".format(persons, confidences),
+                            (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-            if roi_params is not None:
-                cv2.rectangle(frame, (roi_params[0], roi_params[1]), (roi_params[2], roi_params[3]), (0, 165, 255))
-            cv2.imshow('', frame)
+                if roi_params is not None:
+                    cv2.rectangle(frame, (roi_params[0], roi_params[1]), (roi_params[2], roi_params[3]), (0, 165, 255))
+                cv2.imshow('', frame)
 
-            # update winodws
-            cv2.waitKey(1)
-        elif model.mode == model_paused:
-            sleep(0.3)
+                # update winodws
+                cv2.waitKey(1)
+            elif model.mode == model_paused:
+                sleep(0.3)
     except KeyboardInterrupt:
         model.mode = model_abort
     # When everything is done, release the capture

@@ -23,7 +23,7 @@ if args.mode == 'detect':
     model = Model()
     while model.mode != model_abort:
         if model.mode == model_detect:
-            detect(args.workdir + "/features/classifier.pkl")
+            detect(model, args.workdir + "/features/classifier.pkl")
         else:
             person = model.mode.split(':')
             if 'clean' == person[1]:
