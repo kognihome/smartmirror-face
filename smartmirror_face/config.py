@@ -10,6 +10,8 @@ opencv_haarcascade_frontalface = join(model_dir, 'haarcascade_frontalface_defaul
 rsb_face_scope = "/io/display/mirror/face"
 rsb_face_enabled = "/io/display/mirror/faceMode"
 
+unknown_person_label = "_unknown"
+
 model_abort = 'abort'
 model_detect = 'detect'
 model_paused = 'paused'

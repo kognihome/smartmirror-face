@@ -1,3 +1,6 @@
+from .config import unknown_person_label
+
+
 class Smoother(object):
 
     def __init__(self, model):
@@ -10,7 +13,7 @@ class Smoother(object):
     def detect(self, persons):
         if self.model.current is None:
             if self.candidate is None and len(persons) > 0:
-                self.candidate = persons[0]
+                self.candidate = persons[0] if persons[0] != unknown_person_label else None
                 self.current_value = 1
             elif self.candidate in persons:
                 self.current_value += 1

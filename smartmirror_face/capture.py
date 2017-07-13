@@ -19,7 +19,8 @@ OUTPUT_SIZE_WIDTH = 775
 OUTPUT_SIZE_HEIGHT = 600
 
 
-def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3):
+def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3, resolution=(320, 240), size=96,
+                  video_device=0):
 
     face_cascade = cv2.CascadeClassifier(opencv_haarcascade_frontalface)
     face_db_path = join(working_dir, 'faces')
@@ -40,7 +41,7 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3)
 
     end_idx = idx + limit
 
-    capture = cv2.VideoCapture(0)
+    capture = cv2.VideoCapture(video_device)
     cv2.namedWindow("result-image", cv2.WINDOW_AUTOSIZE)
     cv2.moveWindow("result-image", 400, 100)
 
@@ -52,7 +53,7 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3)
 
     while idx <= end_idx:
         rc, fullSizeBaseImage = capture.read()
-        baseImage = cv2.resize(fullSizeBaseImage, ( 320, 240))
+        baseImage = cv2.resize(fullSizeBaseImage, resolution)
 
         # give opencv time to draw the window
         cv2.waitKey(2)
@@ -110,7 +111,7 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3)
     del capture
     # let opencv time to destroy the windows
     cv2.waitKey(2)
-    align_images(tmp_path, face_db_path, processes)
+    align_images(tmp_path, face_db_path, processes=processes, size=size)
 
 
 class AlignWorker(threading.Thread):

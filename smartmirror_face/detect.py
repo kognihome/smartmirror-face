@@ -14,7 +14,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import SVC
 import openface
 
-from .config import dlib_shape_predictor, openface_network_model, lua_dir, model_abort, model_detect, model_paused
+from .config import dlib_shape_predictor, openface_network_model, lua_dir, model_abort
+from .config import model_detect, model_paused, unknown_person_label
 from .smoothing import Smoother
 
 np.set_printoptions(precision=2)
@@ -77,8 +78,7 @@ class Detector(object):
         return reps
 
 
-def detect(model, model_path, video_device=0, video_width=640, video_height=480, roi_coords=None,
-           roi_size=None, cuda=False, img_dim=96, threshold=0.5):
+def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=False, img_dim=96, threshold=0.5):
     align = openface.AlignDlib(dlib_shape_predictor)
     net = openface.TorchNeuralNet(openface_network_model, imgDim=img_dim, cuda=cuda)
 
@@ -87,18 +87,14 @@ def detect(model, model_path, video_device=0, video_width=640, video_height=480,
 
     # Capture device. Usually 0 will be webcam and 1 will be usb cam.
     video_capture = cv2.VideoCapture(video_device)
-    if video_width is not None:
-        video_capture.set(3, video_width)
+    if resolution is not None:
+        video_capture.set(3, resolution[0])
+        video_capture.set(4, resolution[1])
 
-    if video_height is not None:
-        video_capture.set(4, video_height)
-
-    if roi_coords is not None or roi_size is not None:
-        c = roi_coords if roi_coords is not None else (0, 0)
+    if roi is not None:
         vw, vh = video_capture.get(3), video_capture.get(4)
-        s = roi_size if roi_size is not None else (1 - c[0], 1 - c[1])
-        x, y = int(c[0] * vw), int(c[1] * vh)
-        roi_params = (x, y, x + int(s[0] * vw), y + int(s[1] * vh))
+        x, y = int(roi[0] * vw), int(roi[1] * vh)
+        roi_params = (x, y, x + int(roi[3] * vw), y + int(roi[4] * vh))
     else:
         roi_params = None
 
@@ -115,7 +111,7 @@ def detect(model, model_path, video_device=0, video_width=640, video_height=480,
                 persons, confidences = detector.infer(roi)
                 for i, c in enumerate(confidences):
                     if c <= threshold:  # 0.5 is kept as threshold for known face.
-                        persons[i] = "_unknown"
+                        persons[i] = unknown_person_label
 
                 smoother.detect(persons)
                 cv2.putText(frame, "P: {} C: {}".format(persons, confidences),
@@ -140,7 +136,7 @@ def train(input_path, output_path, cuda=False):
     main_lua = join(lua_dir, 'main.lua')
     call = [main_lua, '-data', input_path, '-outDir', output_path, '-model', openface_network_model]
     if cuda:
-        call.append('--cude')
+        call.append('--cuda')
     print(' '.join(call))
     subprocess.check_call(call)
 
