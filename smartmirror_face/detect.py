@@ -137,7 +137,6 @@ def train(input_path, output_path, cuda=False):
     call = [main_lua, '-data', input_path, '-outDir', output_path, '-model', openface_network_model]
     if cuda:
         call.append('--cuda')
-    print(' '.join(call))
     subprocess.check_call(call)
 
     print("Loading embeddings.")

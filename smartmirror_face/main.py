@@ -29,6 +29,7 @@ detect_parser = subparsers.add_parser('detect')
 capture_parser.add_argument('name', type=str, help='person name', default="person")
 
 args = parser.parse_args()
+args.video = tuple(args.video)
 
 if not args.workdir:
     print("Working directory is required!")

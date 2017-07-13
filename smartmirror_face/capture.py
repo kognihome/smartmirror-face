@@ -19,8 +19,8 @@ OUTPUT_SIZE_WIDTH = 775
 OUTPUT_SIZE_HEIGHT = 600
 
 
-def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3, resolution=(320, 240), size=96,
-                  video_device=0):
+def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3, resolution=(320, 240),
+                  size=96, video_device=0):
 
     face_cascade = cv2.CascadeClassifier(opencv_haarcascade_frontalface)
     face_db_path = join(working_dir, 'faces')
@@ -118,12 +118,11 @@ class AlignWorker(threading.Thread):
 
     def __init__(self, queue):
         super(AlignWorker, self).__init__()
-        self.running = False
+        self.done = False
         self.queue = queue
         self.align = openface.AlignDlib(dlib_shape_predictor)
 
     def run(self):
-
         while not self.queue.empty():
             imgObject, output_path, size = self.queue.get(block=True)
             outDir = os.path.join(output_path, imgObject.cls)
@@ -143,7 +142,7 @@ class AlignWorker(threading.Thread):
                 if outRgb is not None:
                     outBgr = cv2.cvtColor(outRgb, cv2.COLOR_RGB2BGR)
                     cv2.imwrite(imgName, outBgr)
-        self.running = False
+        self.done = True
 
 
 def align_images(input_path, output_path, processes=3, size=96):
@@ -160,7 +159,7 @@ def align_images(input_path, output_path, processes=3, size=96):
         t.start()
         threads.append(t)
 
-    while any(t.running for t in threads):
+    while not all(t.done for t in threads):
         print("{0} images left...".format(queue.qsize()))
         time.sleep(0.5)
 
@@ -168,8 +167,6 @@ def align_images(input_path, output_path, processes=3, size=96):
 def prune_db(path, threshold=None):
     exts = ["jpg", "png"]
     for subdir, dirs, files in os.walk(path):
-        if subdir == path:
-            continue
         nImgs = 0
         for fName in files:
             (imageClass, imageName) = (os.path.basename(subdir), fName)
