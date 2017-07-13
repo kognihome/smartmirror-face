@@ -6,8 +6,7 @@ import time
 import tempfile
 from os.path import join
 import glob
-import threading
-from Queue import Queue
+import multiprocessing
 
 import openface
 import openface.helper
@@ -114,53 +113,70 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
     align_images(tmp_path, face_db_path, processes=processes, size=size)
 
 
-class AlignWorker(threading.Thread):
+class AlignWorker(multiprocessing.Process):
 
-    def __init__(self, queue):
+    def __init__(self, input, output, size):
         super(AlignWorker, self).__init__()
         self.done = False
-        self.queue = queue
+        self.input = input
+        self.output = output
         self.align = openface.AlignDlib(dlib_shape_predictor)
+        self.size = size
+        self.processed = 0
 
     def run(self):
-        while not self.queue.empty():
-            imgObject, output_path, size = self.queue.get(block=True)
-            outDir = os.path.join(output_path, imgObject.cls)
-            openface.helper.mkdirP(outDir)
-            outputPrefix = os.path.join(outDir, imgObject.name)
-            imgName = outputPrefix + ".png"
+        try:
+            while not self.input.empty():
+                imgName, rgb = self.input.get(block=True)
+                outRgb = self.align.align(self.size, rgb, landmarkIndices=openface.AlignDlib.OUTER_EYES_AND_NOSE,
+                                          skipMulti=True)
+                self.output.put((imgName, outRgb))
+                self.processed += 1
 
-            if os.path.isfile(imgName):
-                pass
-            else:
-                rgb = imgObject.getRGB()
-                if rgb is None:
-                    outRgb = None
-                else:
-                    outRgb = self.align.align(size, rgb, landmarkIndices=openface.AlignDlib.OUTER_EYES_AND_NOSE,
-                                              skipMulti=True)
-                if outRgb is not None:
-                    outBgr = cv2.cvtColor(outRgb, cv2.COLOR_RGB2BGR)
-                    cv2.imwrite(imgName, outBgr)
-        self.done = True
+
+        except Exception as e:
+            print(e)
+
+        # signal that we are done
+        self.output.put((None, None))
 
 
 def align_images(input_path, output_path, processes=3, size=96):
+    cv2.setNumThreads(0)
+
     openface.helper.mkdirP(output_path)
     imgs = list(iterImgs(input_path))
-    queue = Queue()
+    m = multiprocessing.Manager()
+    workers = m.Queue()
+    results = m.Queue()
 
+    print('preparing images')
     for imgObject in imgs:
-        queue.put((imgObject, output_path, size))
+        outDir = os.path.join(output_path, imgObject.cls)
+        openface.helper.mkdirP(outDir)
+        outputPrefix = os.path.join(outDir, imgObject.name)
+        imgName = outputPrefix + ".png"
+        rgb = imgObject.getRGB()
+        workers.put((imgName, rgb))
+
 
     threads = []
+    print('running workers')
     for i in range(processes):
-        t = AlignWorker(queue)
+        t = AlignWorker(workers, results, size)
         t.start()
         threads.append(t)
 
-    while not all(t.done for t in threads):
-        print("{0} images left...".format(queue.qsize()))
+    workers_done = 0
+    while not workers_done == processes:
+        print("{0} images left...".format(workers.qsize()))
+        while not results.empty():
+            imgName, outRgb = results.get(block=True)
+            if imgName is None:
+                workers_done += 1
+            elif outRgb is not None:
+                outBgr = cv2.cvtColor(outRgb, cv2.COLOR_RGB2BGR)
+                cv2.imwrite(imgName, outBgr)
         time.sleep(0.5)
 
 

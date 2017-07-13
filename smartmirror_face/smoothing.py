@@ -23,7 +23,7 @@ class Smoother(object):
             else:
                 self.current_value -= 1
                 if self.current_value < 0:
-                    self.model.current = None
+                    self.candidate = None
                     self.current_value = 0
 
         elif self.model.current not in persons:
@@ -37,7 +37,7 @@ class Smoother(object):
         else:
             self.current_value = self.forfeit_threshold
 
-        print(self.model.current, self.current_value, self.candidate)
+        #print(self.model.current, self.current_value, self.candidate)
 
 
 

@@ -6,9 +6,10 @@ from .model import Model
 from .config import model_abort, model_detect
 
 parser = argparse.ArgumentParser(description='Process some integers.')
-subparsers = parser.add_subparsers(title='action', dest='action')
+parser.add_argument('action', choices=['capture', 'train', 'detect'])
 parser.add_argument('-w', '--workdir', type=str, help='database and feature directory [required]')
 parser.add_argument('-p', '--prune', action='store_true', help='prune person dataset before capturing')
+parser.add_argument('-n', '--name', type=str, help='name/label for captured data')
 parser.add_argument('-v', '--video', nargs=2, type=int, default=[320, 240],
                     help='face detection image resolution (w h)')
 parser.add_argument('-r', '--roi', nargs=4, type=float,
@@ -21,12 +22,6 @@ parser.add_argument('-d', '--device', type=int, default=0, help="opencv video de
 parser.add_argument('-m', '--min-confidence', type=float, default=0.5, dest='confidence',
                     help="minimal detection confidence")
 
-
-capture_parser = subparsers.add_parser('capture')
-train_parser = subparsers.add_parser('train')
-detect_parser = subparsers.add_parser('detect')
-
-capture_parser.add_argument('name', type=str, help='person name', default="person")
 
 args = parser.parse_args()
 args.video = tuple(args.video)

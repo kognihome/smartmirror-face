@@ -1,6 +1,7 @@
 import pickle
 import sys
-from os.path import join, split, dirname
+from os import remove
+from os.path import join, split, dirname, exists
 import subprocess
 from operator import itemgetter
 from time import sleep
@@ -114,7 +115,9 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
                         persons[i] = unknown_person_label
 
                 smoother.detect(persons)
-                cv2.putText(frame, "P: {} C: {}".format(persons, confidences),
+                conf_display = ["{0:.2f}".format(c) for c in confidences]
+                cv2.putText(frame, "P: {0} C: {1} => {2}:{3}".format(persons, conf_display,
+                                                                 smoother.current_value, model.current),
                             (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
                 if roi_params is not None:
@@ -133,6 +136,8 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
 
 
 def train(input_path, output_path, cuda=False):
+    if exists(input_path + "/cache.t7"):
+        remove(input_path + "/cache.t7")
     main_lua = join(lua_dir, 'main.lua')
     call = [main_lua, '-data', input_path, '-outDir', output_path, '-model', openface_network_model]
     if cuda:
