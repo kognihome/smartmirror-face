@@ -7,7 +7,6 @@ setup(
     author='Alexander Neumann',
     author_email='alneuman@techfak.uni-bielefeld.de',
     packages=["smartmirror_face"],
-    install_requires=['openface', 'rsb-python'],
     entry_points={
       'console_scripts': [
           'smartface = smartmirror_face.main:start'
