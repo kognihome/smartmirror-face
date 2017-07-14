@@ -18,7 +18,7 @@ OUTPUT_SIZE_WIDTH = 775
 OUTPUT_SIZE_HEIGHT = 600
 
 
-def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3, resolution=(320, 240),
+def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3, resolution=(640, 480),
                   size=96, video_device=0):
 
     face_cascade = cv2.CascadeClassifier(opencv_haarcascade_frontalface)
@@ -85,20 +85,19 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
 
         if trackingFace:
 
-            trackingQuality = tracker.update( baseImage )
+            trackingQuality = tracker.update(baseImage)
 
             if trackingQuality >= 8.75:
                 tracked_position = tracker.get_position()
-                cv2.imwrite("{0}/image-{1:04d}.png".format(tmp_path, idx), fullSizeBaseImage)
-                idx += 1
 
                 t_x = int(tracked_position.left())
                 t_y = int(tracked_position.top())
                 t_w = int(tracked_position.width())
                 t_h = int(tracked_position.height())
-                cv2.rectangle(resultImage, (t_x, t_y),
-                                            (t_x + t_w , t_y + t_h),
-                                            rectangleColor ,2)
+                cropped = resultImage[t_y:t_y+t_h, t_x:t_x+t_w]
+                cv2.imwrite("{0}/image-{1:04d}.png".format(tmp_path, idx), cropped)
+                cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w , t_y + t_h), rectangleColor, 2)
+                idx += 1
 
             else:
                 trackingFace = 0
