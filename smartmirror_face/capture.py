@@ -16,6 +16,7 @@ from.config import opencv_haarcascade_frontalface, dlib_shape_predictor
 
 OUTPUT_SIZE_WIDTH = 775
 OUTPUT_SIZE_HEIGHT = 600
+MARGIN = 10
 
 
 def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3, resolution=(640, 480),
@@ -30,6 +31,7 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
     idx = 0
 
     if prune:
+        print("prune class...")
         prune_db(face_person_path)
 
     try:
@@ -40,7 +42,7 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
 
     end_idx = idx + limit
 
-    capture = cv2.VideoCapture(video_device)
+    capture = video_device if not isinstance(video_device, int) else cv2.VideoCapture(video_device)
     cv2.namedWindow("result-image", cv2.WINDOW_AUTOSIZE)
     cv2.moveWindow("result-image", 400, 100)
 
@@ -94,7 +96,15 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
                 t_y = int(tracked_position.top())
                 t_w = int(tracked_position.width())
                 t_h = int(tracked_position.height())
-                cropped = resultImage[t_y:t_y+t_h, t_x:t_x+t_w]
+
+                # make sure the margin does not overflow the image
+                y1 = max(t_y-MARGIN, 0)
+                y2 = min(t_y+t_h+MARGIN, resolution[1])
+                x1 = max(t_x-MARGIN, 0)
+                x2 = min(t_x+t_w+MARGIN, resolution[0])
+                cropped = baseImage[y1:y2, x1:x2]
+
+                # save cropped result to temp folder
                 cv2.imwrite("{0}/image-{1:04d}.png".format(tmp_path, idx), cropped)
                 cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w , t_y + t_h), rectangleColor, 2)
                 idx += 1
@@ -106,7 +116,8 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
         cv2.imshow("result-image", largeResult)
 
     cv2.destroyAllWindows()
-    del capture
+    if isinstance(video_device, int):
+        capture.release()
     # let opencv time to destroy the windows
     cv2.waitKey(2)
     align_images(tmp_path, face_db_path, processes=processes, size=size)
@@ -131,7 +142,6 @@ class AlignWorker(multiprocessing.Process):
                                           skipMulti=True)
                 self.output.put((imgName, outRgb))
                 self.processed += 1
-
 
         except Exception as e:
             print(e)

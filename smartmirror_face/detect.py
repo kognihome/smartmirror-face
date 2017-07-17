@@ -87,13 +87,13 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
     smoother = Smoother(model)
 
     # Capture device. Usually 0 will be webcam and 1 will be usb cam.
-    video_capture = cv2.VideoCapture(video_device)
+    capture = video_device if not isinstance(video_device, int) else cv2.VideoCapture(video_device)
     if resolution is not None:
-        video_capture.set(3, resolution[0])
-        video_capture.set(4, resolution[1])
+        capture.set(3, resolution[0])
+        capture.set(4, resolution[1])
 
     if roi is not None:
-        vw, vh = video_capture.get(3), video_capture.get(4)
+        vw, vh = capture.get(3), capture.get(4)
         x, y = int(roi[0] * vw), int(roi[1] * vh)
         roi_params = (x, y, x + int(roi[3] * vw), y + int(roi[4] * vh))
     else:
@@ -102,7 +102,7 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
     try:
         while model.mode in [model_detect, model_paused]:
             if model.mode == model_detect:
-                ret, frame = video_capture.read()
+                ret, frame = capture.read()
                 if roi_params is not None:
                     roi = frame[roi_params[1]:roi_params[3],
                                 roi_params[0]:roi_params[2]]
@@ -131,8 +131,10 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
     except KeyboardInterrupt:
         model.mode = model_abort
     # When everything is done, release the capture
-    video_capture.release()
+    if isinstance(video_device, int):
+        capture.release()
     cv2.destroyAllWindows()
+    cv2.waitKey(2)
 
 
 def train(input_path, output_path, cuda=False):
@@ -141,7 +143,7 @@ def train(input_path, output_path, cuda=False):
     main_lua = join(lua_dir, 'main.lua')
     call = [main_lua, '-data', input_path, '-outDir', output_path, '-model', openface_network_model]
     if cuda:
-        call.append('--cuda')
+        call.append('-cuda')
     subprocess.check_call(call)
 
     print("Loading embeddings.")

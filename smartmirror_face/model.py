@@ -1,6 +1,6 @@
 import rsb
 
-from .config import rsb_face_scope, rsb_face_enabled
+from .config import rsb_face_scope, rsb_face_mode
 
 
 class Model(object):
@@ -9,7 +9,7 @@ class Model(object):
         self._current = None
         self._mode = 'detect'
         self.rsb_informer = rsb.createInformer(rsb_face_scope)
-        self.rsb_listener = rsb.createListener(rsb_face_enabled)
+        self.rsb_listener = rsb.createListener(rsb_face_mode)
         self.rsb_listener.addHandler(self.on_mode_change)
 
     def __del__(self):
@@ -17,7 +17,9 @@ class Model(object):
         del self.rsb_informer
 
     def on_mode_change(self, evt):
-        self._mode = evt.data
+        print(evt.data)
+        if len(evt.data) > 0:
+            self._mode = evt.data
 
     @property
     def current(self):

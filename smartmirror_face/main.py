@@ -1,6 +1,7 @@
 import argparse
+from cv2 import VideoCapture
 
-from .capture import capture_faces, prune_db
+from .capture import capture_faces
 from .detect import detect, train
 from .model import Model
 from .config import model_abort, model_detect
@@ -40,17 +41,18 @@ def start():
         train(args.workdir + "/faces", args.workdir + "/features", cuda=args.cuda)
 
     if args.action == 'detect':
+        capture = VideoCapture(args.device)
         # modes: 'paused', 'detect', 'exit', '<person_name>[:clean]'
         model = Model()
         while model.mode != model_abort:
             if model.mode == model_detect:
                 detect(model, args.workdir + "/features/classifier.pkl", cuda=args.cuda, img_dim=args.size,
-                       video_device=args.device, resolution=args.video, threshold=args.confidence)
+                       video_device=capture, resolution=args.video, threshold=args.confidence)
             else:
                 person = model.mode.split(':')
                 prune = len(person) > 1 and person[1] == 'clean'
                 capture_faces(person[0], args.workdir, prune=prune, processes=args.threads, limit=args.limit,
-                              resolution=args.video, size=args.size, video_device=args.device)
+                              resolution=args.video, size=args.size, video_device=capture)
                 train(args.workdir + "/faces", args.workdir + "/features", cuda=args.cuda)
                 model.mode = model_detect
 
