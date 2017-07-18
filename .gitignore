@@ -2,3 +2,5 @@
 *.pyc
 out
 build
+dist
+*.egg-info
