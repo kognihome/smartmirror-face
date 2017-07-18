@@ -37,4 +37,8 @@ class Model(object):
 
     @mode.setter
     def mode(self, value):
+        print("SET MODE")
         self._mode = value
+        with rsb.createInformer(rsb_face_mode) as informer:
+            print("SEND MODE", value)
+            informer.publishData(value)

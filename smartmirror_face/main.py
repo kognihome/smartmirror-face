@@ -1,5 +1,5 @@
 import argparse
-from cv2 import VideoCapture, startWindowThread
+from cv2 import VideoCapture
 
 from .capture import capture_faces
 from .detect import detect, train
@@ -49,7 +49,6 @@ def start():
     if args.action == 'detect':
         logger.info("grabbing video device")
         capture = VideoCapture(args.device)
-        # startWindowThread()
         # modes: 'paused', 'detect', 'exit', '<person_name>[:clean]'
         model = Model()
         while model.mode != model_abort:
@@ -60,9 +59,11 @@ def start():
             else:
                 logging.info("train model")
                 person = model.mode.split(':')
+                model.mode = 'capture'
                 prune = len(person) > 1 and person[1] == 'clean'
                 capture_faces(person[0], args.workdir, prune=prune, processes=args.threads, limit=args.limit,
                               resolution=args.video, size=args.size, video_device=capture)
+                model.mode = 'train'
                 train(args.workdir + "/faces", args.workdir + "/features", cuda=args.cuda)
                 model.mode = model_detect
                 logger.info("loop exited")
