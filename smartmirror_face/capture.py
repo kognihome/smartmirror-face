@@ -46,7 +46,6 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
     cv2.namedWindow("result-image", cv2.WINDOW_AUTOSIZE)
     cv2.moveWindow("result-image", 400, 100)
 
-    cv2.startWindowThread()
     tracker = dlib.correlation_tracker()
 
     trackingFace = 0

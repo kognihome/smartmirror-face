@@ -1,5 +1,5 @@
 import argparse
-from cv2 import VideoCapture
+from cv2 import VideoCapture, startWindowThread
 
 from .capture import capture_faces
 from .detect import detect, train
@@ -42,6 +42,7 @@ def start():
 
     if args.action == 'detect':
         capture = VideoCapture(args.device)
+        startWindowThread()
         # modes: 'paused', 'detect', 'exit', '<person_name>[:clean]'
         model = Model()
         while model.mode != model_abort:
