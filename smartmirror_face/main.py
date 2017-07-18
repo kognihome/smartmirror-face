@@ -12,8 +12,7 @@ logger.addHandler(logging.NullHandler())
 
 
 def start():
-    logging.basicConfig()
-    logger.setLevel(logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('action', choices=['capture', 'train', 'detect'])
