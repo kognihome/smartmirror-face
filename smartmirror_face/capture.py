@@ -158,7 +158,11 @@ class AlignWorker(multiprocessing.Process):
 
 
 def align_images(input_path, output_path, processes=3, size=96):
-    cv2.setNumThreads(0)
+    # not available in all opencv 2.4.x versions
+    try:
+        cv2.setNumThreads(0)
+    except AttributeError:
+
 
     openface.helper.mkdirP(output_path)
     imgs = list(iterImgs(input_path))
