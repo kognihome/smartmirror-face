@@ -6,8 +6,15 @@ from .detect import detect, train
 from .model import Model
 from .config import model_abort, model_detect
 
+import logging
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 
 def start():
+    logging.basicConfig()
+    logger.setLevel(logging.DEBUG)
+
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('action', choices=['capture', 'train', 'detect'])
     parser.add_argument('-w', '--workdir', type=str, help='database and feature directory [required]')
@@ -41,21 +48,25 @@ def start():
         train(args.workdir + "/faces", args.workdir + "/features", cuda=args.cuda)
 
     if args.action == 'detect':
+        logger.info("grabbing video device")
         capture = VideoCapture(args.device)
         startWindowThread()
         # modes: 'paused', 'detect', 'exit', '<person_name>[:clean]'
         model = Model()
         while model.mode != model_abort:
+            logger.info("entering loop")
             if model.mode == model_detect:
                 detect(model, args.workdir + "/features/classifier.pkl", cuda=args.cuda, img_dim=args.size,
                        video_device=capture, resolution=args.video, threshold=args.confidence)
             else:
+                logging.info("train model")
                 person = model.mode.split(':')
                 prune = len(person) > 1 and person[1] == 'clean'
                 capture_faces(person[0], args.workdir, prune=prune, processes=args.threads, limit=args.limit,
                               resolution=args.video, size=args.size, video_device=capture)
                 train(args.workdir + "/faces", args.workdir + "/features", cuda=args.cuda)
                 model.mode = model_detect
+                logger.info("loop exited")
 
 
 if __name__ == "__main__":
