@@ -84,6 +84,7 @@ class Detector(object):
 
 
 def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=False, img_dim=96, threshold=0.5):
+    logger.info("Init DNN resources")
     align = openface.AlignDlib(dlib_shape_predictor)
     net = openface.TorchNeuralNet(openface_network_model, imgDim=img_dim, cuda=cuda)
 
