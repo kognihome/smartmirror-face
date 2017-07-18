@@ -14,6 +14,10 @@ from openface.data import iterImgs
 
 from.config import opencv_haarcascade_frontalface, dlib_shape_predictor
 
+import logging
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 OUTPUT_SIZE_WIDTH = 775
 OUTPUT_SIZE_HEIGHT = 600
 MARGIN = 10
@@ -42,6 +46,7 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
 
     end_idx = idx + limit
 
+    logger.debug("Set capture device")
     capture = video_device if not isinstance(video_device, int) else cv2.VideoCapture(video_device)
     cv2.namedWindow("result-image", cv2.WINDOW_AUTOSIZE)
     cv2.moveWindow("result-image", 400, 100)
@@ -85,6 +90,7 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
                 trackingFace = 1
 
         if trackingFace:
+            logger.debug("Face found")
 
             trackingQuality = tracker.update(baseImage)
 
@@ -107,18 +113,20 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
                 cv2.imwrite("{0}/image-{1:04d}.png".format(tmp_path, idx), cropped)
                 cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w , t_y + t_h), rectangleColor, 2)
                 idx += 1
-
+                logger.debug("Stored face id {0}".format(idx))
             else:
                 trackingFace = 0
 
         largeResult = cv2.resize(resultImage, (OUTPUT_SIZE_WIDTH, OUTPUT_SIZE_HEIGHT))
         cv2.imshow("result-image", largeResult)
 
+    logger.info("Finished capturing")
     cv2.destroyAllWindows()
     if isinstance(video_device, int):
         capture.release()
     # let opencv time to destroy the windows
     cv2.waitKey(2)
+    logger.info("Start alignment")
     align_images(tmp_path, face_db_path, processes=processes, size=size)
 
 
