@@ -49,7 +49,7 @@ def start():
     if args.action == 'detect':
         logger.info("grabbing video device")
         capture = VideoCapture(args.device)
-        startWindowThread()
+        # startWindowThread()
         # modes: 'paused', 'detect', 'exit', '<person_name>[:clean]'
         model = Model()
         while model.mode != model_abort:
