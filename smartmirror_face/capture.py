@@ -162,7 +162,7 @@ def align_images(input_path, output_path, processes=3, size=96):
     try:
         cv2.setNumThreads(0)
     except AttributeError:
-
+        pass
 
     openface.helper.mkdirP(output_path)
     imgs = list(iterImgs(input_path))
