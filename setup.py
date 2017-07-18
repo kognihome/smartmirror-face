@@ -7,7 +7,6 @@ setup(
     author='Alexander Neumann',
     author_email='alneuman@techfak.uni-bielefeld.de',
     packages=["smartmirror_face"],
-    setup_requires=['numpy', 'scipy'],
     install_requires=['pandas', 'scikit-learn', 'scipy', 'numpy'],
     entry_points={
       'console_scripts': [
