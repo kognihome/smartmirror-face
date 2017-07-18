@@ -19,6 +19,10 @@ from .config import dlib_shape_predictor, openface_network_model, lua_dir, model
 from .config import model_detect, model_paused, unknown_person_label
 from .smoothing import Smoother
 
+import logging
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 np.set_printoptions(precision=2)
 
 
@@ -102,6 +106,7 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
     try:
         while model.mode in [model_detect, model_paused]:
             if model.mode == model_detect:
+                logger.debug("Grabbing image")
                 ret, frame = capture.read()
                 if roi_params is not None:
                     roi = frame[roi_params[1]:roi_params[3],
