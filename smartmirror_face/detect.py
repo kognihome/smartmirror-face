@@ -92,6 +92,7 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
     smoother = Smoother(model)
 
     # Capture device. Usually 0 will be webcam and 1 will be usb cam.
+    logger.info("Assign video capture")
     capture = video_device if not isinstance(video_device, int) else cv2.VideoCapture(video_device)
     if resolution is not None:
         capture.set(3, resolution[0])
