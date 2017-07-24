@@ -35,7 +35,7 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
     idx = 0
 
     if prune:
-        print("prune class...")
+        logger.info("prune class...")
         prune_db(face_person_path)
 
     try:
@@ -85,6 +85,8 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
                     maxArea = w*h
 
             if maxArea > 0:
+                # if a face is tracked with the (faster) opencv detection
+                # it is passed to the dlib tracker
                 tracker.start_track(baseImage,
                                     dlib.rectangle(x-10, y-20, x+w+10, y+h+20))
                 trackingFace = 1
@@ -111,19 +113,23 @@ def capture_faces(person, working_dir=None, limit=100, prune=False, processes=3,
 
                 # save cropped result to temp folder
                 cv2.imwrite("{0}/image-{1:04d}.png".format(tmp_path, idx), cropped)
+                # add a rectangle for easier evaluation if the right face has been tracked
                 cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w , t_y + t_h), rectangleColor, 2)
                 idx += 1
-                logger.debug("Stored face id {0}".format(idx))
+                logger.info("Stored face image with id {0}".format(idx))
             else:
                 trackingFace = 0
 
+        # show grabbed image plus rectangle (if a face had been tracked)
         largeResult = cv2.resize(resultImage, (OUTPUT_SIZE_WIDTH, OUTPUT_SIZE_HEIGHT))
         cv2.imshow("result-image", largeResult)
 
     logger.info("Finished capturing")
     cv2.destroyAllWindows()
+    # in case we have created the device on our own, we can delete it now since it is not needed anymore
     if isinstance(video_device, int):
         capture.release()
+
     # let opencv time to destroy the windows
     cv2.waitKey(2)
     logger.info("Start alignment")
@@ -160,6 +166,10 @@ class AlignWorker(multiprocessing.Process):
 def align_images(input_path, output_path, processes=3, size=96):
     # not available in all opencv 2.4.x versions
     try:
+        # since 2.4.13 opencv supports multithreading out of the box
+        # this does not play well with multiprocessing of python
+        # we need multiprocessing to spread the load of image alignment to all the cores
+        # as python threading is limited to one core only
         cv2.setNumThreads(0)
     except AttributeError:
         pass
@@ -170,7 +180,9 @@ def align_images(input_path, output_path, processes=3, size=96):
     workers = m.Queue()
     results = m.Queue()
 
-    print('preparing images')
+    # fill the worker queue before starting the processes as the workers
+    # will exit in case the queue is empty
+    logger.info('preparing images')
     for imgObject in imgs:
         outDir = os.path.join(output_path, imgObject.cls)
         openface.helper.mkdirP(outDir)
@@ -179,9 +191,8 @@ def align_images(input_path, output_path, processes=3, size=96):
         rgb = imgObject.getRGB()
         workers.put((imgName, rgb))
 
-
     threads = []
-    print('running workers')
+    logger.info('running workers')
     for i in range(processes):
         t = AlignWorker(workers, results, size)
         t.start()
@@ -189,12 +200,16 @@ def align_images(input_path, output_path, processes=3, size=96):
 
     workers_done = 0
     while not workers_done == processes:
-        print("{0} images left...".format(workers.qsize()))
+        logger.info("{0} images left...".format(workers.qsize()))
         while not results.empty():
             imgName, outRgb = results.get(block=True)
+            # the last message a worker will send is a 'None' image to signal it is done
+            # as the worker runs in another process you cannot access ressources/properties
+            # of the worker directly
             if imgName is None:
                 workers_done += 1
             elif outRgb is not None:
+                # dlib works with RGB but opencv requires BGR order for writing images
                 outBgr = cv2.cvtColor(outRgb, cv2.COLOR_RGB2BGR)
                 cv2.imwrite(imgName, outBgr)
         time.sleep(0.5)
@@ -202,6 +217,8 @@ def align_images(input_path, output_path, processes=3, size=96):
 
 def prune_db(path, threshold=None):
     exts = ["jpg", "png"]
+    # python does not offer simple ways to delete folders with content (this is probably a good thing)
+    # os walk cleans a folder (just PNG and JPGs) and removes it afterwards
     for subdir, dirs, files in os.walk(path):
         nImgs = 0
         for fName in files:
@@ -209,5 +226,5 @@ def prune_db(path, threshold=None):
             if any(imageName.lower().endswith("." + ext) for ext in exts):
                 nImgs += 1
         if threshold is None or nImgs < threshold:
-            print("Removing {}".format(subdir))
+            logger.info("Removing {}".format(subdir))
             shutil.rmtree(subdir)

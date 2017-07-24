@@ -12,7 +12,9 @@ logger.addHandler(logging.NullHandler())
 
 
 def start():
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
+    # # in case you need detailed output
+    # logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('action', choices=['capture', 'train', 'detect'])
@@ -32,6 +34,7 @@ def start():
                         help="minimal detection confidence")
 
     args = parser.parse_args()
+    # requires since argparse passes lists but opencv REQUIRES tuples
     args.video = tuple(args.video)
 
     if not args.workdir:
@@ -39,20 +42,29 @@ def start():
         parser.print_help()
         exit(1)
 
+    # the detection operates in three modes, 'capture' and 'train' are meant for bootstrapping and will
+    # return after their job is done. Capturing the images for the database and training the model are
+    # separated since capturing should be done for different persons before training is conducted
     if args.action == 'capture':
+        logger.info("capture new images")
         capture_faces(args.name, args.workdir, prune=args.prune, processes=args.threads, limit=args.limit,
                       resolution=args.video, size=args.size, video_device=args.device)
 
-    if args.action == 'train':
+    elif args.action == 'train':
+        logger.info("train data")
         train(args.workdir + "/faces", args.workdir + "/features", cuda=args.cuda)
 
-    if args.action == 'detect':
+    # 'detect' is more or less the operation mode which requires a trained model
+    # (which is shipped with the project though). Capturing and training can be triggered by RSB messages
+    # containing the name of the person to track and an optional suffix :clean in case the previous
+    # training data _FOR THAT CLASS_ should be pruned.
+    elif args.action == 'detect':
         logger.info("grabbing video device")
         capture = VideoCapture(args.device)
         # modes: 'paused', 'detect', 'exit', '<person_name>[:clean]'
         model = Model()
         while model.mode != model_abort:
-            logger.info("entering loop")
+            logger.info("entering detection loop")
             if model.mode == model_detect:
                 detect(model, args.workdir + "/features/classifier.pkl", cuda=args.cuda, img_dim=args.size,
                        video_device=capture, resolution=args.video, threshold=args.confidence)

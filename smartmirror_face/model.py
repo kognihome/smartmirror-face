@@ -17,7 +17,7 @@ class Model(object):
         del self.rsb_informer
 
     def on_mode_change(self, evt):
-        print(evt.data)
+        # in case someone sends empty mode strings
         if len(evt.data) > 0:
             self._mode = evt.data
 
@@ -28,6 +28,9 @@ class Model(object):
     @current.setter
     def current(self, value):
         if value != self._current:
+            # smartmirror exptects a string which can be checked as a personal token
+            # in kognidb, we currently use icl.face.<person_name> to assign face detection
+            # tokens to people
             self.rsb_informer.publishData('icl.face.' + value if value is not None else '')
             self._current = value
 
@@ -37,8 +40,6 @@ class Model(object):
 
     @mode.setter
     def mode(self, value):
-        print("SET MODE")
         self._mode = value
         with rsb.createInformer(rsb_face_mode) as informer:
-            print("SEND MODE", value)
             informer.publishData(value)

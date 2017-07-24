@@ -47,12 +47,13 @@ class Detector(object):
             try:
                 rep = rep.reshape(1, -1)
             except AttributeError:
-                print ("No Face detected")
+                logger.info("No Face detected")
                 return None, None
             predictions = self.clf.predict_proba(rep).ravel()
             maxI = np.argmax(predictions)
             persons.append(self.le.inverse_transform(maxI))
             confidences.append(predictions[maxI])
+            # we do not use gaussian models (yet) BUT you never know...
             if isinstance(self.clf, GMM):
                 dist = np.linalg.norm(rep - self.clf.means_[maxI])
                 print("  + Distance from the mean: {}".format(dist))
@@ -98,6 +99,10 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
         capture.set(3, resolution[0])
         capture.set(4, resolution[1])
 
+    # roi is set in relative coordinates
+    # 0, 0, 1, 1 translates into 0, 0, width, height of the actual resolution
+    # 640x480 and a roi of 0.25, 0.25, 0.5, 0.5 => 160 120 320 240
+    # or x1 = 160, x2=480, y1=120, y2=360
     if roi is not None:
         vw, vh = capture.get(3), capture.get(4)
         x, y = int(roi[0] * vw), int(roi[1] * vh)
@@ -106,6 +111,7 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
         roi_params = None
 
     try:
+        # if mode is not 'detect' or 'paused' the method will return
         while model.mode in [model_detect, model_paused]:
             if model.mode == model_detect:
                 logger.debug("Grabbing image")
@@ -121,18 +127,24 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
                     if c <= threshold:  # 0.5 is kept as threshold for known face.
                         persons[i] = unknown_person_label
 
+                # check the smoother code for comments how smoothing has been implemented
+                # smoother.current_value indicates the 'heat' or certainty of the current tracking result
                 smoother.detect(persons)
                 conf_display = ["{0:.2f}".format(c) for c in confidences]
                 cv2.putText(frame, "P: {0} C: {1} => {2}:{3}".format(persons, conf_display,
-                                                                 smoother.current_value, model.current),
+                                                                     smoother.current_value, model.current),
                             (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
+                # show roi rectangle in case
                 if roi_params is not None:
                     cv2.rectangle(frame, (roi_params[0], roi_params[1]), (roi_params[2], roi_params[3]), (0, 165, 255))
                 cv2.imshow('', frame)
 
                 # update winodws
                 cv2.waitKey(1)
+
+            # mode 'paused' comes in handy in cases where continous detection is not needed
+            # in the smart mirror scenario this is true when 'checkout' has been triggered.
+            # this way we also prevent 'losing' the person when she/he sits down to put on clothes
             elif model.mode == model_paused:
                 sleep(0.3)
     except KeyboardInterrupt:
@@ -145,6 +157,7 @@ def detect(model, model_path, video_device=0, resolution=None, roi=None, cuda=Fa
 
 
 def train(input_path, output_path, cuda=False):
+    # remove the cachec to force the lua scripts to look for new images
     if exists(input_path + "/cache.t7"):
         remove(input_path + "/cache.t7")
     main_lua = join(lua_dir, 'main.lua')
@@ -153,7 +166,7 @@ def train(input_path, output_path, cuda=False):
         call.append('-cuda')
     subprocess.check_call(call)
 
-    print("Loading embeddings.")
+    logger.info("Loading embeddings")
     fname = "{}/labels.csv".format(output_path)
     labels = pd.read_csv(fname, header=None).as_matrix()[:, 1]
     labels = map(itemgetter(1), map(split, map(dirname, labels)))  # Get the directory.
@@ -162,12 +175,15 @@ def train(input_path, output_path, cuda=False):
     le = LabelEncoder().fit(labels)
     labelsNum = le.transform(labels)
     nClasses = len(le.classes_)
-    print("Training for {} classes.".format(nClasses))
+    logger.info("Training for {} classes.".format(nClasses))
 
+    # fit the trained data into a model classifier
+    # SVMs are a good trade off for speech and performance
+    # scitkit supports more classifiers which also should work
     clf = SVC(C=1, kernel='linear', probability=True)
     clf.fit(embeddings, labelsNum)
 
     fName = "{}/classifier.pkl".format(output_path)
-    print("Saving classifier to '{}'".format(fName))
+    logger.info("Saving classifier to '{}'".format(fName))
     with open(fName, 'w') as f:
         pickle.dump((le, clf), f)
